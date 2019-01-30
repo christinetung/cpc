@@ -17,19 +17,19 @@ data_size = batch_size * 150
 k_steps = 5
 horizon = 60
 mini_data_size = int(data_size / k_steps / horizon)
-seed = 0
+seed = 42
 
 assert mini_data_size * k_steps * horizon == data_size
 
 # Configure experiment path
-savepath = "cpc_tunnel/z_%d_k_%d_seed_%d" % (z_dim, k_steps, seed)
+savepath = "filter42"
 configure("%s/var_log" % savepath, flush_secs=5)
 
 # Set seed
 torch.manual_seed(seed)
 
-# Generate 2d tunnel data
-map2d = get_map('tunnel')
+# Generate no obstacle map
+map2d = get_map('no')
 
 fig = plt.figure(figsize=(8, 12))
 gs = gridspec.GridSpec(3, 2)
@@ -62,8 +62,8 @@ print('Data size: %d' % (data_size))
 
 # Create CPC model
 C = CPC(x_dim, z_dim, batch_size)
-
-C.cuda()
+if torch.cuda.is_available():
+    C.cuda()
 
 C_solver = optim.RMSprop(list(C.parameters()), lr=1e-3)
 params = list(C.parameters())
@@ -73,18 +73,44 @@ for epoch in range(1000):
     n_batch = int(data_size / batch_size)
     for it in range(n_batch):
         idx = np.random.choice(data_size, size=batch_size)
-        idx = Variable(torch.from_numpy(idx)).cuda()
+        if torch.cuda.is_available():
+            idx = Variable(torch.from_numpy(idx)).cuda()
 
-        # loss = -E_X[log(f(x_t+1, z_t)/sum(f(x_i, z_t)))]
-        #x = data[idx, :x_dim]
-        #x_next = data[idx, x_dim:]
-        x = torch.index_select(data, 0, idx)[:, :x_dim]
-        x_next = torch.index_select(data, 0, idx)[:, x_dim:]
+        # CPC loss = -E_X[log(f(x_t+1, z_t)/sum(f(x_i, z_t)))]
+        if torch.cuda.is_available():
+            x = torch.index_select(data, 0, idx)[:, :x_dim]
+            x_next = torch.index_select(data, 0, idx)[:, x_dim:]
+        else:
+            x = data[idx, :x_dim]
+            x_next = data[idx, x_dim:]
         z = C.encode(x)
+
         density = C.density(x_next, z)
         density_sum = 0
+        #for j in range(batch_size):
+        #    density_sum += C.density(torch.cat((x_next[-j:], x_next[:-j])), z)
+        # filter out negative samples that are too far from the point
+        density_sum += density
         for j in range(batch_size):
-            density_sum += C.density(torch.cat((x_next[-j:], x_next[:-j])), z)
+            negative_sample = torch.zeros(0).cuda()
+            for k in range(batch_size):
+                sample_idx = np.random.choice(data_size, size=1)[0]
+                sample_x = data[sample_idx, :x_dim].cpu()
+                true_x = data[idx[k], x_dim:].cpu()
+                dist = np.sqrt((sample_x[0] - true_x[0])**2 + (sample_x[1] - true_x[1])**2)
+                while sample_idx == idx[k] or dist < 0.05:
+                    sample_idx = np.random.choice(data_size, size=1)[0]
+                    sample_x = data[sample_idx, :x_dim].cpu()
+                    true_x = data[idx[k], x_dim:].cpu()
+                    dist = np.sqrt((sample_x[0] - true_x[0])**2 + (sample_x[1] - true_x[1])**2)
+                if torch.cuda.is_available():
+                    sample_idx = Variable(torch.from_numpy(np.array([sample_idx]))).cuda()
+                    negative_sample = torch.cat((negative_sample, torch.index_select(data, 0, sample_idx)[:, :x_dim]))
+                else:
+                    negative_sample = torch.cat((negative_sample, data[sample_idx, :x_dim]))
+            negative_sample = torch.reshape(negative_sample, (batch_size, x_dim))
+            density_sum += C.density(negative_sample, z)
+
         C_loss = -torch.mean(torch.log(density / density_sum))
 
         C_loss.backward()
@@ -97,22 +123,6 @@ for epoch in range(1000):
 
     log_value('C_loss', C_loss, epoch)
 
-    xv, yv = np.meshgrid(np.linspace(-1.0, 1.0, 30), np.linspace(-1.0, 1.0, 30))
-    _input = np.concatenate([np.reshape(xv, (-1, 1)), np.reshape(yv, (-1, 1))], axis=1)
-    _dist = C.get_dist(from_numpy_to_var(_input)).data.cpu().numpy()
-    _eval = np.argmax(np.reshape(_dist, (30, 30, z_dim)), axis=-1)
-
-    fig = plt.figure(figsize=(12, 12))
-    gs = gridspec.GridSpec(3, 3)
-    cmap = cm.get_cmap('hsv')
-    norm = colors.Normalize(vmin=0.0, vmax=z_dim)
-    plt.imshow(_eval, cmap=cmap, norm=norm, origin='lower', extent=[-1., 1., -1., 1.])
-    plot_map(map2d)
-    if not os.path.exists('%s/' % savepath):
-        os.makedirs('%s/' % savepath)
-    plt.savefig('%s/{}.png'.format(str(epoch).zfill(3)) % savepath, bbox_inches='tight')
-    plt.close()
-
     if not os.path.exists('%s/var' % savepath):
         os.makedirs('%s/var' % savepath)
-    torch.save(C.state_dict(), '%s/var/cpc' % savepath)
+    torch.save(C.state_dict(), '%s/var/cpc%d' % (savepath, epoch))

@@ -385,6 +385,10 @@ def get_map(name, **kwargs):
         map2d.add_horizontal_door(x0=-0.2, x1=0.2, y=-0.1)
         map2d.add_horizontal_obstacle(x0=-1.0, x1=-.2, y=-0.1)
         map2d.add_horizontal_obstacle(x0=.2, x1=1.0, y=-0.1)
+    elif name == 'no':
+        params = dict(x0=(-0.3, -0.3, 0.3, 0.3), y0=(-0.15, 0.05, -0.15, 0.05), dx=0.05, dy=0.05, ministeps=5)
+        params.update(kwargs)
+        map2d = Particle2dTunnel(**params)
     else:
         raise ValueError('name should be one of ["line", "block", "*tunnel", "door"]')
     return map2d
