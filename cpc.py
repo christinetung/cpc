@@ -42,3 +42,14 @@ class CPC(nn.Module):
         f_out = torch.exp(torch.bmm(torch.bmm(z_next.permute(0, 2, 1), w), z))
         f_out = f_out.squeeze()
         return f_out
+
+    def log_density(self, x_next, z):
+        assert x_next.size(0) == z.size(0)
+        z_next = self.encode(x_next)
+        z_next = z_next.unsqueeze(2)
+        z = z.unsqueeze(2)
+        w = self.W.repeat(z.size(0), 1, 1)
+        f_out = torch.bmm(torch.bmm(z_next.permute(0, 2, 1), w), z)
+        f_out = f_out.squeeze()
+        return f_out
+
