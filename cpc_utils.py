@@ -452,4 +452,4 @@ def stochastic_binary_layer(x, tau=1.0):
     return out.view(orig_shape)
 
 def onehot_to_int(x):
-    return np.where(x==1)[0]
+    return np.where(x==1)[1]

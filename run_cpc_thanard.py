@@ -94,6 +94,8 @@ for epoch in range(1000):
         if C_loss != C_loss:
             import ipdb
             ipdb.set_trace()
+        if epoch == 0:
+            break
         C_loss.backward()
         C_solver.step()
 
