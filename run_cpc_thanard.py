@@ -7,18 +7,19 @@ from matplotlib import pyplot as plt, cm, colors, gridspec
 from tensorboard_logger import configure, log_value, log_histogram
 from torch.autograd import Variable
 from cpc import CPC
-from cpc_utils import from_numpy_to_var, reset_grad, get_map, plot_data_density, plot_map
+from cpc_utils import from_numpy_to_var, reset_grad, get_map, plot_data_density, plot_map, plot_clusters, binary_to_int, onehot_to_int
 
 # Arguments
 x_dim = 2
 z_dim = 10
 batch_size = 256
 data_size = batch_size * 150
-k_steps = 5
-horizon = 60
+k_steps = 1
+horizon = 150
 mini_data_size = int(data_size / k_steps / horizon)
 seed = 42
 N = 100
+output_type = "onehot"
 assert mini_data_size * k_steps * horizon == data_size
 
 # Configure experiment path
@@ -29,7 +30,7 @@ configure("%s/var_log" % savepath, flush_secs=5)
 torch.manual_seed(seed)
 
 # Generate no obstacle map
-map2d = get_map('no')
+map2d = get_map('tunnel')
 
 fig = plt.figure(figsize=(8, 12))
 gs = gridspec.GridSpec(3, 2)
@@ -61,7 +62,7 @@ data = from_numpy_to_var(trajs)
 print('Data size: %d' % (data_size))
 
 # Create CPC model
-C = CPC(x_dim, z_dim, batch_size)
+C = CPC(x_dim, z_dim, batch_size, output_type=output_type)
 if torch.cuda.is_available():
     C.cuda()
 
@@ -77,6 +78,7 @@ for epoch in range(1000):
         x_next = data[idx, x_dim:]
         z = C.encode(x)
 
+        # import ipdb; ipdb.set_trace()
         # Positive
         positive_log_density = C.log_density(x_next, z)
 
@@ -96,6 +98,22 @@ for epoch in range(1000):
         C_solver.step()
 
         reset_grad(params)
+
+    # Plot grids
+    if output_type in ['binary', 'onehot']:
+        plot_res = 30
+        xv, yv = np.meshgrid(np.linspace(-1.0, 1.0, plot_res), np.linspace(-1.0, 1.0, plot_res))
+        _input = np.concatenate([np.reshape(xv, (-1, 1)), np.reshape(yv, (-1, 1))], axis=1)
+        z_eval = C.encode(from_numpy_to_var(_input)).data.cpu().numpy()
+        if output_type == "binary":
+            idx_eval = binary_to_int(z_eval, width=z_dim)
+        else:
+            idx_eval = onehot_to_int(z_eval)
+        # import ipdb; ipdb.set_trace()
+        idx_map = np.reshape(idx_eval, (plot_res, plot_res))
+        plot_clusters(idx_map, z_dim, map2d)
+        if epoch % 1 == 0:
+            plt.savefig("%s/%03d" % (savepath, epoch))
 
     print("********** Epoch %i ************" % epoch)
     print(C_loss)
