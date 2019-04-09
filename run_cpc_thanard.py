@@ -11,7 +11,7 @@ from cpc_utils import from_numpy_to_var, reset_grad, get_map, plot_data_density,
 
 # Arguments
 x_dim = 2
-z_dim = 10
+z_dim = 3
 batch_size = 256
 data_size = batch_size * 150
 k_steps = 1
@@ -19,11 +19,11 @@ horizon = 150
 mini_data_size = int(data_size / k_steps / horizon)
 seed = 42
 N = 100
-output_type = "onehot"
+output_type = "binary"
 assert mini_data_size * k_steps * horizon == data_size
 
 # Configure experiment path
-savepath = "filter42"
+savepath = os.path.join("out", output_type, "z-%d" % z_dim)
 configure("%s/var_log" % savepath, flush_secs=5)
 
 # Set seed
@@ -66,6 +66,7 @@ C = CPC(x_dim, z_dim, batch_size, output_type=output_type)
 if torch.cuda.is_available():
     C.cuda()
 
+# C_solver = optim.Adam(list(C.parameters()), lr=1e-3)
 C_solver = optim.RMSprop(list(C.parameters()), lr=1e-3)
 params = list(C.parameters())
 
@@ -103,17 +104,19 @@ for epoch in range(1000):
 
     # Plot grids
     if output_type in ['binary', 'onehot']:
-        plot_res = 30
+        plot_res = 31
         xv, yv = np.meshgrid(np.linspace(-1.0, 1.0, plot_res), np.linspace(-1.0, 1.0, plot_res))
         _input = np.concatenate([np.reshape(xv, (-1, 1)), np.reshape(yv, (-1, 1))], axis=1)
         z_eval = C.encode(from_numpy_to_var(_input)).data.cpu().numpy()
         if output_type == "binary":
             idx_eval = binary_to_int(z_eval, width=z_dim)
+            n_colors = 2**z_dim
         else:
             idx_eval = onehot_to_int(z_eval)
+            n_colors = z_dim
         # import ipdb; ipdb.set_trace()
         idx_map = np.reshape(idx_eval, (plot_res, plot_res))
-        plot_clusters(idx_map, z_dim, map2d)
+        plot_clusters(idx_map, n_colors, map2d)
         if epoch % 1 == 0:
             plt.savefig("%s/%03d" % (savepath, epoch))
 
