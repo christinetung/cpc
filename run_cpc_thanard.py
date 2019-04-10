@@ -11,7 +11,7 @@ from cpc_utils import from_numpy_to_var, reset_grad, get_map, plot_data_density,
 
 # Arguments
 x_dim = 2
-z_dim = 3
+z_dim = 8
 batch_size = 256
 data_size = batch_size * 150
 k_steps = 1
@@ -20,17 +20,18 @@ mini_data_size = int(data_size / k_steps / horizon)
 seed = 42
 N = 100
 output_type = "binary"
+map_name = "tunnel"
 assert mini_data_size * k_steps * horizon == data_size
 
 # Configure experiment path
-savepath = os.path.join("out", output_type, "z-%d" % z_dim)
+savepath = os.path.join("out", map_name, output_type, "z-%d" % z_dim)
 configure("%s/var_log" % savepath, flush_secs=5)
 
 # Set seed
 torch.manual_seed(seed)
 
 # Generate no obstacle map
-map2d = get_map('tunnel')
+map2d = get_map(map_name)
 
 fig = plt.figure(figsize=(8, 12))
 gs = gridspec.GridSpec(3, 2)
@@ -66,8 +67,8 @@ C = CPC(x_dim, z_dim, batch_size, output_type=output_type)
 if torch.cuda.is_available():
     C.cuda()
 
-# C_solver = optim.Adam(list(C.parameters()), lr=1e-3)
-C_solver = optim.RMSprop(list(C.parameters()), lr=1e-3)
+C_solver = optim.Adam(list(C.parameters()), lr=1e-3)
+# C_solver = optim.RMSprop(list(C.parameters()), lr=1e-3)
 params = list(C.parameters())
 
 # Train CPC model
