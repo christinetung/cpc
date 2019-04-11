@@ -13,10 +13,10 @@ from blockwall.dataset import ImageNumpy
 from torch.utils.data import DataLoader
 
 # Arguments
-z_dim = 10
-k_steps = 5
+z_dim = 3
+k_steps = 1
 num_epochs = 1000
-batch_size = 8
+batch_size = 32
 N = 50
 seed = 0
 output_type = "binary"
@@ -26,7 +26,7 @@ eval_size = 400
 savepath = os.path.join('out',
                         'blockwall',
                         output_type,
-                        'z_%d_seed_%d' % (z_dim, seed))
+                        'z_%d_batch_size_%d_N_%d_k_%d_seed_%d' % (z_dim, batch_size, N, k_steps, seed))
 configure('%s/var_log' % savepath, flush_secs=5)
 
 # Set seed
@@ -59,10 +59,11 @@ print('Number of transitions: %d' % data_size) #378315
 #                          shuffle=False)
 
 # Create CPC model
-C = CPC()
+C = CPC(z_dim, output_type=output_type)
 if torch.cuda.is_available():
     C.cuda()
-C_solver = optim.RMSprop(list(C.parameters()), lr=1e-3)
+C_solver = optim.Adam(list(C.parameters()), lr=1e-3)
+# C_solver = optim.RMSprop(list(C.parameters()), lr=1e-3)
 params = list(C.parameters())
 
 def get_torch_images_from_numpy(npy_list):
@@ -175,6 +176,7 @@ for epoch in range(num_epochs):
         fig = plt.figure()
         plt.scatter(np_pos_o[:, 0], np_pos_o[:, 1], c=y,  cmap=cmap, norm=norm)
         if epoch % 1 == 0:
+            # import ipdb; ipdb.set_trace()
             plt.savefig("%s/%03d" % (savepath, epoch))
     # if output_type in ['binary', 'onehot']:
     #     plot_res = 31

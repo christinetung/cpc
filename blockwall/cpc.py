@@ -12,7 +12,7 @@ class UnFlatten(nn.Module):
         return input.view(input.size(0), size, 1, 1)
 
 class CPC(nn.Module):
-    def __init__(self, h_dim=1024, z_dim=10, output_type="continuous"):
+    def __init__(self, z_dim, output_type="continuous"):
         super(CPC, self).__init__()
         self.encoder = nn.Sequential(
             # 3 x 64 x 64
@@ -34,7 +34,7 @@ class CPC(nn.Module):
             # 256 x 4 x 4
             Flatten()
         )
-        self.fc1 = nn.Linear(h_dim, z_dim)
+        self.fc1 = nn.Linear(1024, z_dim)
         self.W = nn.Parameter(torch.rand(z_dim, z_dim))
         self.output_type = output_type
 
