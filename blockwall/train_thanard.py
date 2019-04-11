@@ -2,6 +2,7 @@ import numpy as np
 import os.path
 import torch
 import torch.optim as optim
+import matplotlib
 
 from blockwall.cpc import CPC
 from matplotlib import pyplot as plt
@@ -19,7 +20,8 @@ batch_size = 8
 N = 50
 seed = 0
 output_type = "binary"
-
+c_dim = 2**z_dim if output_type == "binary" else z_dim
+eval_size = 400
 # Configure experiment path
 savepath = os.path.join('out',
                         'blockwall',
@@ -99,7 +101,6 @@ for epoch in range(num_epochs):
         o = get_torch_images_from_numpy(data[idx, t])
         o_next = get_torch_images_from_numpy(data[idx, t + k_steps])
 
-        np_pos_o = np.stack([_['state'][1,:2] for _ in data[idx, t][:, 1]])
         # idx = np.random.choice(data_size, size=batch_size)
         # o = data["o"][idx]
         # o_next = data["o_next"][idx]
@@ -157,9 +158,24 @@ for epoch in range(num_epochs):
 
     if not os.path.exists('%s/var' % savepath):
         os.makedirs('%s/var' % savepath)
-    torch.save(C.state_dict(), '%s/var/cpc-%d-last-5' % (savepath, epoch % 5))
+    torch.save(C.state_dict(), '%s/var/cpc-%d-last-5' % (savepath, (epoch-1) % 5 + 1))
 
-    # # Plot
+    # Plot
+    if output_type in ['binary', 'onehot']:
+        idx, t = get_idx_t(eval_size)
+        o = get_torch_images_from_numpy(data[idx, t])
+        z = C.encode(o)
+        if output_type == 'binary':
+            y = binary_to_int(z.detach().cpu().numpy())
+        else:
+            y = onehot_to_int(z.detach().cpu().numpy())
+        np_pos_o = np.stack([_['state'][1,:2] for _ in data[idx, t][:, 1]])
+        cmap = matplotlib.cm.get_cmap('hsv')
+        norm = matplotlib.colors.Normalize(vmin=0.0, vmax=c_dim)
+        fig = plt.figure()
+        plt.scatter(np_pos_o[:, 0], np_pos_o[:, 1], c=y,  cmap=cmap, norm=norm)
+        if epoch % 1 == 0:
+            plt.savefig("%s/%03d" % (savepath, epoch))
     # if output_type in ['binary', 'onehot']:
     #     plot_res = 31
     #     xv, yv = np.meshgrid(np.linspace(-1.0, 1.0, plot_res), np.linspace(-1.0, 1.0, plot_res))
