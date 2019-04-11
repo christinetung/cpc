@@ -59,7 +59,7 @@ print('Number of transitions: %d' % data_size) #378315
 #                          shuffle=False)
 
 # Create CPC model
-C = CPC()
+C = CPC(output_type=output_type)
 if torch.cuda.is_available():
     C.cuda()
 C_solver = optim.RMSprop(list(C.parameters()), lr=1e-3)
@@ -175,6 +175,7 @@ for epoch in range(num_epochs):
         fig = plt.figure()
         plt.scatter(np_pos_o[:, 0], np_pos_o[:, 1], c=y,  cmap=cmap, norm=norm)
         if epoch % 1 == 0:
+            # import ipdb; ipdb.set_trace()
             plt.savefig("%s/%03d" % (savepath, epoch))
     # if output_type in ['binary', 'onehot']:
     #     plot_res = 31
