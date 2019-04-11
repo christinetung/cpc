@@ -6,7 +6,7 @@ from torch.autograd import Variable
 import torch
 # from torchvision.datasets.folder import is_image_file, default_loader, find_classes, \
 # IMG_EXTENSIONS
-from torchvision.datasets.folder import default_loader, find_classes, \
+from torchvision.datasets.folder import default_loader, \
 IMG_EXTENSIONS
 import os
 import os.path
@@ -119,82 +119,82 @@ def make_pair(imgs, resets, k, get_img, root):
         pkl.dump(bad_pairs, f)
     return image_pairs
 
-class ImagePairs(data.Dataset):
-    """
-    A copy of ImageFolder from torchvision. Output image pairs that are k steps apart.
-
-    Args:
-        root (string): Root directory path.
-        transform (callable, optional): A function/transform that  takes in an PIL image
-            and returns a transformed version. E.g, ``transforms.RandomCrop``
-        target_transform (callable, optional): A function/transform that takes in the
-            target and transforms it.
-        loader (callable, optional): A function to load an image given its path.
-        n_frames_apart (int): The number of frames between the image pairs. Fixed for now.
-
-     Attributes:
-        classes (list): List of the class names.
-        class_to_idx (dict): Dict with items (class_name, class_index).
-        img_pairs (list): List of pairs of (image path, class_index) tuples
-    """
-
-    def __init__(self, root, transform=None, target_transform=None,
-                 loader=default_loader, n_frames_apart=1):
-        classes, class_to_idx = find_classes(root)
-        imgs, actions = make_dataset(root, class_to_idx)
-        if len(imgs) == 0:
-            raise(RuntimeError("Found 0 images in subfolders of: " + root + "\n"
-                               "Supported image extensions are: " + ",".join(IMG_EXTENSIONS)))
-        # resets = 1. - actions[:, -1]
-        resets = actions
-        print("len images then resets: {0}, {1}".format(len(imgs), len(resets)))
-        assert len(imgs) == len(resets)
-
-        self.root = root
-        self.classes = classes
-        self.class_to_idx = class_to_idx
-        self.transform = transform
-        self.target_transform = target_transform
-        self.loader = loader
-        img_pairs = make_pair(imgs, resets, n_frames_apart, self._get_image, self.root)
-        self.img_pairs = img_pairs
-
-    def _get_image(self, path):
-        img = self.loader(path)
-        if self.transform is not None:
-            img = self.transform(img)
-        return img
-
-    def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-
-        Returns:
-            tuple: (image, target) where target is class_index of the target class.
-        """
-        output = []
-        for path, target in self.img_pairs[index]:
-            img = self.loader(path)
-            if self.transform is not None:
-                img = self.transform(img)
-            if self.target_transform is not None:
-                target = self.target_transform(target)
-            output.append((img, target))
-        return output
-
-    def __len__(self):
-        return len(self.img_pairs)
-
-    def __repr__(self):
-        fmt_str = 'Dataset ' + self.__class__.__name__ + '\n'
-        fmt_str += '    Number of datapoints: {}\n'.format(self.__len__())
-        fmt_str += '    Root Location: {}\n'.format(self.root)
-        tmp = '    Transforms (if any): '
-        fmt_str += '{0}{1}\n'.format(tmp, self.transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
-        tmp = '    Target Transforms (if any): '
-        fmt_str += '{0}{1}'.format(tmp, self.target_transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
-        return fmt_str
+# class ImagePairs(data.Dataset):
+#     """
+#     A copy of ImageFolder from torchvision. Output image pairs that are k steps apart.
+#
+#     Args:
+#         root (string): Root directory path.
+#         transform (callable, optional): A function/transform that  takes in an PIL image
+#             and returns a transformed version. E.g, ``transforms.RandomCrop``
+#         target_transform (callable, optional): A function/transform that takes in the
+#             target and transforms it.
+#         loader (callable, optional): A function to load an image given its path.
+#         n_frames_apart (int): The number of frames between the image pairs. Fixed for now.
+#
+#      Attributes:
+#         classes (list): List of the class names.
+#         class_to_idx (dict): Dict with items (class_name, class_index).
+#         img_pairs (list): List of pairs of (image path, class_index) tuples
+#     """
+#
+#     def __init__(self, root, transform=None, target_transform=None,
+#                  loader=default_loader, n_frames_apart=1):
+#         classes, class_to_idx = find_classes(root)
+#         imgs, actions = make_dataset(root, class_to_idx)
+#         if len(imgs) == 0:
+#             raise(RuntimeError("Found 0 images in subfolders of: " + root + "\n"
+#                                "Supported image extensions are: " + ",".join(IMG_EXTENSIONS)))
+#         # resets = 1. - actions[:, -1]
+#         resets = actions
+#         print("len images then resets: {0}, {1}".format(len(imgs), len(resets)))
+#         assert len(imgs) == len(resets)
+#
+#         self.root = root
+#         self.classes = classes
+#         self.class_to_idx = class_to_idx
+#         self.transform = transform
+#         self.target_transform = target_transform
+#         self.loader = loader
+#         img_pairs = make_pair(imgs, resets, n_frames_apart, self._get_image, self.root)
+#         self.img_pairs = img_pairs
+#
+#     def _get_image(self, path):
+#         img = self.loader(path)
+#         if self.transform is not None:
+#             img = self.transform(img)
+#         return img
+#
+#     def __getitem__(self, index):
+#         """
+#         Args:
+#             index (int): Index
+#
+#         Returns:
+#             tuple: (image, target) where target is class_index of the target class.
+#         """
+#         output = []
+#         for path, target in self.img_pairs[index]:
+#             img = self.loader(path)
+#             if self.transform is not None:
+#                 img = self.transform(img)
+#             if self.target_transform is not None:
+#                 target = self.target_transform(target)
+#             output.append((img, target))
+#         return output
+#
+#     def __len__(self):
+#         return len(self.img_pairs)
+#
+#     def __repr__(self):
+#         fmt_str = 'Dataset ' + self.__class__.__name__ + '\n'
+#         fmt_str += '    Number of datapoints: {}\n'.format(self.__len__())
+#         fmt_str += '    Root Location: {}\n'.format(self.root)
+#         tmp = '    Transforms (if any): '
+#         fmt_str += '{0}{1}\n'.format(tmp, self.transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
+#         tmp = '    Target Transforms (if any): '
+#         fmt_str += '{0}{1}'.format(tmp, self.target_transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
+#         return fmt_str
 
 class ImagePairsOther(data.Dataset):
     """
@@ -404,17 +404,19 @@ class ImageNumpy(data.Dataset):
         img_pairs (list): List of pairs of (image path, class_index) tuples
     """
 
-    def __init__(self, root, test=False, reverse=False, transform=None, no_stripe=False, target_transform=None, loader=default_loader, gray=False):
+    def __init__(self, root, test=False, reverse=False, transform=None, no_stripe=False, target_transform=None, loader=default_loader, gray=False, k_steps=1):
         self.gray = gray
         self.data = []
 
         data = np.load(root)
         for i in range(len(data)): # Iterate through each trajectory
-            for j in range(len(data[i]) - 1):
+            for j in range(len(data[i]) - k_steps):
                 if self.gray and j == 0:
                     continue
+                if j % k_steps != 0:
+                    continue
                 img_a = data[i][j][0]#.transpose(2, 0, 1)
-                img_b = data[i][j+1][0]#.transpose(2, 0, 1)
+                img_b = data[i][j+k_steps][0]#.transpose(2, 0, 1)
                 if np.sum(img_a) != 0 and np.sum(img_b) != 0:
                     imgs = (img_a, img_b)
                     #action = data[i][j+1][1]['action']
