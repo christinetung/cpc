@@ -18,7 +18,7 @@ def reset_grad(params):
 
 def binary_to_int(x):
     width = x.shape[1]
-    return x.dot(2 ** np.arange(width)[::-1])
+    return x.dot(2 ** np.arange(width)[::-1]).astype(np.int32)
 
 def stochastic_binary_layer(x, tau=1.0):
     """
