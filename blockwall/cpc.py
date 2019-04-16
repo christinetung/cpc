@@ -75,7 +75,7 @@ class CPC(nn.Module):
 
 class VAE(nn.Module):
     def __init__(self, z_dim, h_dim=1024, output_type="continuous"):
-        super(CPC, self).__init__()
+        super(VAE, self).__init__()
         self.encoder = nn.Sequential(
             # 3 x 64 x 64
             nn.Conv2d(3, 32, kernel_size=4, stride=2),
@@ -168,6 +168,8 @@ class VAE(nn.Module):
 
 
 def loss_function(recon_x, x, mu, logvar):
+    # import ipdb
+    # ipdb.set_trace()
     BCE = F.binary_cross_entropy(recon_x.view(-1, 64*64), x.view(-1, 64*64), size_average=False)
 
     # see Appendix B from VAE paper:
@@ -176,7 +178,7 @@ def loss_function(recon_x, x, mu, logvar):
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-    return BCE + KLD
+    return (BCE + KLD)/x.size(0)
 
 
 class Decoder(nn.Module):

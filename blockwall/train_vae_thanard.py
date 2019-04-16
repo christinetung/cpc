@@ -3,7 +3,7 @@ import os.path
 import torch
 import torch.optim as optim
 import matplotlib
-
+from torchvision.utils import save_image
 from blockwall.cpc import VAE, loss_function
 from matplotlib import pyplot as plt
 from tensorboard_logger import configure, log_value
@@ -20,13 +20,13 @@ num_epochs = 1000
 batch_size = 32
 N = 50
 seed = 0
-output_type = "binary"
+output_type = "continuous"
 c_dim = 2**z_dim if output_type == "binary" else z_dim
 eval_size = 400
-vae_weight = 1.0
+vae_weight = 0.001
 # Configure experiment path
 savepath = os.path.join('out',
-                        'blockwall',
+                        'blockwall-vae',
                         output_type,
                         'z_%d_vae_%.3f_batch_size_%d_N_%d_k_%d_seed_%d' % (z_dim, vae_weight, batch_size, N, k_steps, seed))
 configure('%s/var_log' % savepath, flush_secs=5)
@@ -54,12 +54,13 @@ C_solver = optim.Adam(list(cpc.parameters()), lr=1e-3)
 params = list(cpc.parameters())
 
 
-def get_torch_images_from_numpy(npy_list):
+def get_torch_images_from_numpy(npy_list, normalize=True):
     """
     :param npy_list: a list of (image, attrs) pairs
+    :param normalize: if True then the output is between 0 and 1
     :return: Torch Variable as input to model
     """
-    return from_numpy_to_var(np.transpose(np.stack(npy_list[:, 0]), (0, 3, 1, 2)))
+    return from_numpy_to_var(np.transpose(np.stack(npy_list[:, 0]), (0, 3, 1, 2)))/255
 
 
 def get_idx_t(batch_size):
@@ -92,13 +93,13 @@ for epoch in range(num_epochs):
         # Loss
         density_ratio = 1+torch.sum(torch.exp(negative_log_density-positive_log_density[:, None]), dim=1)
         C_loss = -torch.mean(torch.log(1/density_ratio))
-        VAE_loss = loss_function(o_pred, data, mu, logvar)
+        VAE_loss = loss_function(o_pred, o, mu, logvar)
 
         if epoch == 0:
             break
 
         # Training
-        (C_loss + VAE_loss).backward()
+        (C_loss + vae_weight*VAE_loss).backward()
         C_solver.step()
 
         reset_grad(params)
@@ -111,7 +112,11 @@ for epoch in range(num_epochs):
 
     if not os.path.exists('%s/var' % savepath):
         os.makedirs('%s/var' % savepath)
-    torch.save(cpc.state_dict(), '%s/var/cpc-%d-last-5' % (savepath, (epoch-1) % 5 + 1))
+    torch.save(cpc.state_dict(), '%s/var/cpc-%d-last-5' % (savepath, epoch % 5 + 1))
+
+    comparison = torch.cat([o[:8], o_pred[:8]])
+    save_image(comparison.data.cpu(),
+               os.path.join(savepath, 'reconstruction_' + str(epoch) + '.png'), nrow=8)
 
     # Plot
     if epoch % 1 == 0:
