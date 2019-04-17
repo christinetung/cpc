@@ -93,13 +93,18 @@ for epoch in range(num_epochs):
         # Loss
         density_ratio = 1+torch.sum(torch.exp(negative_log_density-positive_log_density[:, None]), dim=1)
         C_loss = -torch.mean(torch.log(1/density_ratio))
+        # import ipdb
+        # ipdb.set_trace()
         VAE_loss = loss_function(o_pred, o, mu, logvar)
 
         if epoch == 0:
             break
 
         # Training
-        (C_loss + vae_weight*VAE_loss).backward()
+        if epoch < 10:
+            VAE_loss.backward()
+        else:
+            (C_loss + vae_weight*VAE_loss).backward()
         C_solver.step()
 
         reset_grad(params)
@@ -120,6 +125,7 @@ for epoch in range(num_epochs):
 
     # Plot
     if epoch % 1 == 0:
+        # Clusters
         if output_type in ['binary', 'onehot']:
             idx, t = get_idx_t(eval_size)
             o = get_torch_images_from_numpy(data[idx, t])
@@ -145,3 +151,6 @@ for epoch in range(num_epochs):
             ax.scatter(np_pos_o[:, 0], np_pos_o[:, 1], y, c=colormap[y])
             plt.savefig("%s/d3_%03d" % (savepath, epoch))
             plt.close()
+
+        # Energy model
+
