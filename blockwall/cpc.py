@@ -151,8 +151,8 @@ class VAE(nn.Module):
 
     def forward(self, x):
         z, mu, logvar = self.encode(x)
-        z = self.decode(z)
-        return z, mu, logvar
+        o = self.decode(z)
+        return o, mu, logvar
 
     def log_density(self, x_next, z):
         # Same as density
@@ -167,7 +167,7 @@ class VAE(nn.Module):
 
 
 
-def loss_function(recon_x, x, mu, logvar):
+def loss_function(recon_x, x, mu, logvar, beta=1):
     # import ipdb
     # ipdb.set_trace()
     BCE = F.binary_cross_entropy(recon_x.view(-1, 64*64), x.view(-1, 64*64), size_average=False)
@@ -178,8 +178,14 @@ def loss_function(recon_x, x, mu, logvar):
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-    return (BCE + KLD)/x.size(0)
+    return (BCE + beta*KLD)/x.size(0)
 
+def variational_lower_bound(recon_x, x, mu, logvar):
+    input = recon_x.view(-1, 3 * 64 * 64)
+    target = x.view(-1, 3 * 64 * 64)
+    BCE = target * torch.log(input) + (1 - target) * torch.log(1 - input)
+    KLD = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp())
+    return BCE.sum(1), KLD.sum(1)
 
 class Decoder(nn.Module):
     def __init__(self, h_dim=1024, z_dim=10):
